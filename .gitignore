@@ -1,0 +1,9 @@
+.venv/
+.vendor/
+.tmp/
+.packages/
+__pycache__/
+*.pyc
+instance/*.db
+instance/*.sqlite
+.env

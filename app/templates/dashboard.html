@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="mb-4">
+  <h1 class="h3 fw-bold mb-2">Smart Attendance Dashboard</h1>
+  <p class="text-muted mb-0">
+    Full no-login workflow: student database, face enrollment, QR session control, webcam confirmation, and CSV reports.
+  </p>
+</section>
+
+<section class="row g-3 mb-4">
+  <div class="col-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Students</div>
+        <div class="stat-value">{{ stats.students }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Active Sessions</div>
+        <div class="stat-value">{{ stats.active_sessions }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Attendance Records</div>
+        <div class="stat-value">{{ stats.attendance_records }}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if not cv_available %}
+<div class="alert alert-warning">
+  OpenCV is unavailable. Install requirements before using face verification.
+</div>
+{% endif %}
+
+<section class="row g-4">
+  <div class="col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">1) Register Student</h2>
+        <form id="student-form" class="vstack gap-2">
+          <input class="form-control" name="roll_no" placeholder="Roll No (e.g. U18AJ23S0163)" required>
+          <input class="form-control" name="full_name" placeholder="Full Name" required>
+          <input class="form-control" name="department" placeholder="Department">
+          <input class="form-control" name="semester" type="number" min="1" max="12" placeholder="Semester">
+          <button class="btn btn-primary" type="submit">Add Student</button>
+        </form>
+        <div id="student-message" class="small mt-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">2) Create Attendance Session</h2>
+        <form id="session-form" class="row g-2 align-items-end">
+          <div class="col-12">
+            <label class="form-label mb-1">Session Name</label>
+            <input class="form-control" name="session_name" placeholder="MCA S3 - DBMS Hour 1" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label mb-1">Duration (min)</label>
+            <input class="form-control" name="duration_min" type="number" min="1" max="60" value="5" required>
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-success" type="submit">Generate Live QR</button>
+          </div>
+        </form>
+        <div id="session-message" class="small mt-2"></div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">Active Sessions</h3>
+        </div>
+        <div id="active-sessions-list" class="vstack gap-2">
+          {% for s in active_sessions %}
+          <div class="border rounded p-2 bg-light-subtle" data-session-id="{{ s.id }}">
+            <div class="fw-semibold small">{{ s.session_name }}</div>
+            <div class="tiny text-muted mb-2">Expires: {{ s.expires_at }}</div>
+            <button class="btn btn-sm btn-outline-danger close-session-btn" data-session-id="{{ s.id }}">
+              Close Session
+            </button>
+          </div>
+          {% else %}
+          <div class="tiny text-muted">No active session.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Live QR</h2>
+        <div id="qr-block" class="d-none">
+          <img id="qr-image" class="img-fluid rounded border mb-2" alt="Session QR">
+          <div class="small text-muted mb-1">Anti-fake live challenge:</div>
+          <div id="challenge-text" class="challenge-box mb-2"></div>
+          <label class="form-label mb-1 small">QR Text</label>
+          <textarea id="qr-text" class="form-control form-control-sm" rows="6" readonly></textarea>
+        </div>
+        <div id="qr-empty" class="tiny text-muted">Create a session to display QR here.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card mt-4">
+  <div class="card-body">
+    <h2 class="h5 mb-3">3) Face Confirm + Mark Attendance</h2>
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <label class="form-label mb-1">Student</label>
+        <select id="roll-no" class="form-select">
+          <option value="">Select Roll Number</option>
+          {% for s in students %}
+          <option value="{{ s.roll_no }}">
+            {{ s.roll_no }} - {{ s.full_name }} {{ "[Face Enrolled]" if s.face_signature else "[Face Not Enrolled]" }}
+          </option>
+          {% endfor %}
+        </select>
+        <label class="form-label mb-1 mt-3">Camera Source</label>
+        <select id="camera-source" class="form-select">
+          <option value="webcam">Webcam</option>
+          <option value="phone">Phone Camera</option>
+        </select>
+        <div class="d-grid gap-2 mt-3">
+          <button id="start-camera" class="btn btn-outline-primary" type="button">Start Camera</button>
+          <button id="scan-qr" class="btn btn-outline-secondary" type="button">Scan QR</button>
+          <button id="enroll-face" class="btn btn-outline-dark" type="button">Enroll/Update Face</button>
+          <button id="mark-attendance" class="btn btn-primary" type="button">Capture + Mark Attendance</button>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <video id="camera-preview" class="camera-view rounded border" autoplay playsinline muted></video>
+        <canvas id="capture-canvas" class="d-none"></canvas>
+        <div class="small text-muted mt-2">
+          Webcam confirms identity by matching live face with enrolled student profile.
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div id="qr-reader" class="qr-reader rounded border"></div>
+        <label class="form-label mt-2 mb-1">Scanned QR Content</label>
+        <textarea id="scanned-qr" class="form-control" rows="6" placeholder="Scan or paste QR content here"></textarea>
+      </div>
+    </div>
+    <div id="attendance-message" class="small mt-3"></div>
+  </div>
+</section>
+
+<section class="row g-4 mt-1">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">Student Directory</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Roll No</th>
+                <th>Name</th>
+                <th>Face</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="students-table">
+              {% for s in students %}
+              <tr data-student-id="{{ s.id }}" data-roll-no="{{ s.roll_no }}">
+                <td>{{ s.roll_no }}</td>
+                <td>{{ s.full_name }}</td>
+                <td>
+                  {% if s.face_signature %}
+                  <span class="badge bg-success-subtle text-success-emphasis">Enrolled</span>
+                  {% else %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis">Not Enrolled</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline-danger delete-student-btn" data-student-id="{{ s.id }}">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-muted">No students found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="h6">Attendance Report Export</h3>
+        <div class="row g-2">
+          <div class="col-md-7">
+            <label class="form-label mb-1">Session Filter</label>
+            <select id="report-session-id" class="form-select">
+              <option value="">All Sessions</option>
+              {% for s in sessions %}
+              <option value="{{ s.id }}">{{ s.session_name }} ({{ s.starts_at }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label mb-1">Date Filter</label>
+            <input id="report-date" class="form-control" type="date">
+          </div>
+          <div class="col-12 d-grid">
+            <button id="export-report" class="btn btn-outline-success" type="button">Download CSV Report</button>
+          </div>
+        </div>
+        <div class="tiny text-muted mt-2">Exports `record_id`, `session`, `student`, source, liveness and face match score.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card mt-4">
+  <div class="card-body">
+    <h3 class="h6">Recent Attendance</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Student</th>
+            <th>Session</th>
+            <th>Source</th>
+            <th>Liveness</th>
+            <th>Face Match</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td>#{{ r.id }}</td>
+            <td>{{ r.student_roll_no }} - {{ r.student_name }}</td>
+            <td>{{ r.session_name }}</td>
+            <td>{{ r.source }}</td>
+            <td>{{ "%.2f"|format(r.liveness_score) }}</td>
+            <td>{{ "%.2f"|format(r.face_match_score) }}</td>
+            <td>{{ r.created_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted">No attendance records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

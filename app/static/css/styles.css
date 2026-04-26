@@ -1,0 +1,48 @@
+body {
+  background-color: #f7f9fc;
+}
+
+.card {
+  border: 0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.stat-label {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.stat-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.camera-view {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #111827;
+}
+
+.qr-reader {
+  width: 100%;
+  min-height: 250px;
+  background: #f3f4f6;
+}
+
+.challenge-box {
+  font-size: 0.92rem;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+}
+
+.tiny {
+  font-size: 0.8rem;
+}
