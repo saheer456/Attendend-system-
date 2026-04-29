@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Login — Smart Attendance{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">📋</div>
+      <h1>Smart Attendance</h1>
+      <p>Sign in to your account</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert {{ 'alert-danger' if category == 'error' else 'alert-success' }}">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login_post') }}" class="stack gap-sm">
+      <div>
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" name="email" placeholder="you@example.com" required autofocus>
+      </div>
+      <div>
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button class="btn btn-primary btn-block mt-sm" type="submit">Sign In</button>
+    </form>
+
+    <div class="auth-footer">
+      <p class="text-xs text-muted text-center">Smart Attendance System — QR + Face Verification</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

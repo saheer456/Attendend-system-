@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Student Portal — Smart Attendance{% endblock %}
+
+{% block body %}
+<div class="attend-layout">
+  <!-- Header -->
+  <div class="attend-header">
+    <h1>📋 {{ user.full_name }}</h1>
+    <p>Student Portal</p>
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm" style="margin-top:0.5rem;">Logout</a>
+  </div>
+
+  {% if not student %}
+  <div class="attend-card">
+    <div class="alert alert-warning">
+      Your account is not linked to a student profile. Contact your teacher.
+    </div>
+  </div>
+  {% else %}
+
+  <!-- Attendance Percentage Card -->
+  <div class="attend-card">
+    <div class="text-center">
+      <div class="pct-ring {{ 'pct-high' if attendance_pct >= 75 else ('pct-mid' if attendance_pct >= 50 else 'pct-low') }}">
+        <span class="pct-ring-value">{{ attendance_pct }}%</span>
+      </div>
+      <div class="text-sm text-muted mt-sm">Your Attendance</div>
+      <div class="text-xs text-muted">{{ student.roll_no }} · {{ student.department or "—" }}</div>
+    </div>
+  </div>
+
+  <!-- Mark Attendance Button -->
+  <div class="attend-card" id="mark-section">
+    <button id="start-wizard" class="btn btn-primary btn-block" type="button" style="padding:0.85rem;">
+      📸 Mark Attendance
+    </button>
+  </div>
+
+  <!-- ===== WIZARD (hidden until button clicked) ===== -->
+  <div class="hidden" id="wizard">
+
+    <!-- Step Indicators -->
+    <div class="attend-steps">
+      <div class="attend-step active" id="step-ind-1">
+        <span class="step-num">1</span>
+        <span class="step-label">Scan QR</span>
+      </div>
+      <div class="attend-step" id="step-ind-2">
+        <span class="step-num">2</span>
+        <span class="step-label">Verify Face</span>
+      </div>
+    </div>
+
+    <!-- Step 1: QR Scan -->
+    <div class="attend-card" id="step-1">
+      <div class="card-title">Scan Session QR Code</div>
+      <p class="text-sm text-muted mb-md">Point your camera at the QR code displayed by your teacher.</p>
+      <div class="stack gap-sm">
+        <div class="qr-reader-wrap" id="qr-reader"></div>
+        <button id="start-scan-btn" class="btn btn-primary btn-block" type="button">Start QR Scanner</button>
+        <div class="text-center text-xs text-muted">— or paste manually —</div>
+        <textarea id="att-scanned-qr" class="form-control" rows="3" placeholder="Paste QR content…"></textarea>
+        <div id="qr-scan-info" class="hidden">
+          <div class="alert alert-success"><strong>Session found:</strong> <span id="qr-session-name"></span></div>
+        </div>
+        <div class="grid-2">
+          <button id="step-1-back" class="btn btn-outline" type="button">Cancel</button>
+          <button id="step-1-next" class="btn btn-primary" type="button" disabled>Next → Verify Face</button>
+        </div>
+      </div>
+      <div id="qr-message" class="msg"></div>
+    </div>
+
+    <!-- Step 2: Face Verification -->
+    <div class="attend-card hidden" id="step-2">
+      <div class="card-title">Live Face Verification</div>
+      <div class="stack gap-sm">
+        <div class="challenge-box" id="att-challenge">Follow the challenge instructions shown here.</div>
+        <div class="camera-wrap">
+          <video id="att-camera" class="camera-view" autoplay playsinline muted></video>
+          <div class="camera-status"><span class="camera-dot" id="att-cam-dot"></span><span id="att-cam-label">Camera off</span></div>
+        </div>
+        <canvas id="att-canvas" class="hidden"></canvas>
+        <button id="att-mark-btn" class="btn btn-success btn-block" type="button">📸 Capture & Mark Attendance</button>
+        <button id="step-2-back" class="btn btn-outline btn-block" type="button">← Back</button>
+      </div>
+      <div id="att-message" class="msg"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="attend-card hidden" id="step-result">
+      <div class="attend-result" id="result-content"></div>
+    </div>
+  </div>
+
+  <!-- Attendance History -->
+  <div class="attend-card mt-md">
+    <div class="card-title">Recent History</div>
+    {% if records %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Session</th><th>Time</th><th>Scores</th></tr></thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td>{{ r.session_name }}</td>
+            <td class="text-sm text-muted">{{ r.created_at }}</td>
+            <td class="text-xs">L:{{ "%.1f"|format(r.liveness_score) }} F:{{ "%.2f"|format(r.face_match_score) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-sm text-muted text-center" style="padding:1rem;">No attendance records yet.</div>
+    {% endif %}
+  </div>
+
+  {% endif %}
+
+  {% if not cv_available %}
+  <div class="alert alert-warning mt-md">⚠️ Face verification is unavailable on the server.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/attend.js') }}"></script>
+{% endblock %}

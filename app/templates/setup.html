@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}First-Time Setup — Smart Attendance{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">🛠️</div>
+      <h1>First-Time Setup</h1>
+      <p>Create your admin account to get started.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert {{ 'alert-danger' if category == 'error' else 'alert-success' }}">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.setup_post') }}" class="stack gap-sm">
+      <div>
+        <label class="form-label">Your Name</label>
+        <input class="form-control" type="text" name="full_name" placeholder="Admin Name" required autofocus>
+      </div>
+      <div>
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" name="email" placeholder="admin@example.com" required>
+      </div>
+      <div>
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" name="password" placeholder="Choose a password" required>
+      </div>
+      <button class="btn btn-success btn-block mt-sm" type="submit">Create Admin Account</button>
+    </form>
+
+    <div class="auth-footer">
+      <p class="text-xs text-muted text-center">This page only appears on first run.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

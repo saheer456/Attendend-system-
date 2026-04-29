@@ -1,268 +1,462 @@
 {% extends "base.html" %}
+{% block title %}Admin Dashboard — Smart Attendance{% endblock %}
 
-{% block content %}
-<section class="mb-4">
-  <h1 class="h3 fw-bold mb-2">Smart Attendance Dashboard</h1>
-  <p class="text-muted mb-0">
-    Full no-login workflow: student database, face enrollment, QR session control, webcam confirmation, and CSV reports.
-  </p>
-</section>
+{% block body %}
+<button class="menu-toggle" id="menu-toggle" aria-label="Toggle Menu">☰</button>
 
-<section class="row g-3 mb-4">
-  <div class="col-4">
-    <div class="card stat-card h-100">
-      <div class="card-body">
-        <div class="stat-label">Students</div>
-        <div class="stat-value">{{ stats.students }}</div>
-      </div>
+<div class="app-layout">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <h1>Smart Attendance</h1>
+      <span>{{ user.role|title }} Dashboard</span>
     </div>
-  </div>
-  <div class="col-4">
-    <div class="card stat-card h-100">
-      <div class="card-body">
-        <div class="stat-label">Active Sessions</div>
-        <div class="stat-value">{{ stats.active_sessions }}</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-link active" data-tab="overview">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Overview
+      </button>
+      <button class="sidebar-link" data-tab="students">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Students
+      </button>
+      <button class="sidebar-link" data-tab="sessions">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Sessions
+      </button>
+      <button class="sidebar-link" data-tab="records">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Records & Reports
+      </button>
+      {% if user.is_admin %}
+      <button class="sidebar-link" data-tab="teachers">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Teachers
+      </button>
+      {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-name">{{ user.full_name }}</div>
+        <div class="sidebar-user-email text-xs">{{ user.email }}</div>
       </div>
+      <a href="{{ url_for('auth.logout') }}" class="sidebar-logout">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </a>
     </div>
-  </div>
-  <div class="col-4">
-    <div class="card stat-card h-100">
-      <div class="card-body">
-        <div class="stat-label">Attendance Records</div>
-        <div class="stat-value">{{ stats.attendance_records }}</div>
+  </aside>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <div class="main-content">
+
+    <!-- -------- OVERVIEW -------- -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="page-header">
+        <h2>Dashboard Overview</h2>
+        <p>System status and recent activity at a glance.</p>
       </div>
-    </div>
-  </div>
-</section>
-
-{% if not cv_available %}
-<div class="alert alert-warning">
-  OpenCV is unavailable. Install requirements before using face verification.
-</div>
-{% endif %}
-
-<section class="row g-4">
-  <div class="col-xl-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">1) Register Student</h2>
-        <form id="student-form" class="vstack gap-2">
-          <input class="form-control" name="roll_no" placeholder="Roll No (e.g. U18AJ23S0163)" required>
-          <input class="form-control" name="full_name" placeholder="Full Name" required>
-          <input class="form-control" name="department" placeholder="Department">
-          <input class="form-control" name="semester" type="number" min="1" max="12" placeholder="Semester">
-          <button class="btn btn-primary" type="submit">Add Student</button>
-        </form>
-        <div id="student-message" class="small mt-2"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">2) Create Attendance Session</h2>
-        <form id="session-form" class="row g-2 align-items-end">
-          <div class="col-12">
-            <label class="form-label mb-1">Session Name</label>
-            <input class="form-control" name="session_name" placeholder="MCA S3 - DBMS Hour 1" required>
+      <div class="page-body">
+        {% if not cv_available %}
+        <div class="alert alert-warning mb-lg">⚠️ OpenCV is unavailable.</div>
+        {% endif %}
+        <div class="stats-grid">
+          <div class="card stat-card">
+            <div class="stat-label">Total Students</div>
+            <div class="stat-value">{{ stats.students }}</div>
           </div>
-          <div class="col-12">
-            <label class="form-label mb-1">Duration (min)</label>
-            <input class="form-control" name="duration_min" type="number" min="1" max="60" value="5" required>
+          <div class="card stat-card green">
+            <div class="stat-label">Active Sessions</div>
+            <div class="stat-value">{{ stats.active_sessions }}</div>
           </div>
-          <div class="col-12 d-grid">
-            <button class="btn btn-success" type="submit">Generate Live QR</button>
+          <div class="card stat-card orange">
+            <div class="stat-label">Attendance Records</div>
+            <div class="stat-value">{{ stats.attendance_records }}</div>
           </div>
-        </form>
-        <div id="session-message" class="small mt-2"></div>
-        <hr>
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h3 class="h6 mb-0">Active Sessions</h3>
         </div>
-        <div id="active-sessions-list" class="vstack gap-2">
-          {% for s in active_sessions %}
-          <div class="border rounded p-2 bg-light-subtle" data-session-id="{{ s.id }}">
-            <div class="fw-semibold small">{{ s.session_name }}</div>
-            <div class="tiny text-muted mb-2">Expires: {{ s.expires_at }}</div>
-            <button class="btn btn-sm btn-outline-danger close-session-btn" data-session-id="{{ s.id }}">
-              Close Session
-            </button>
-          </div>
-          {% else %}
-          <div class="tiny text-muted">No active session.</div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Live QR</h2>
-        <div id="qr-block" class="d-none">
-          <img id="qr-image" class="img-fluid rounded border mb-2" alt="Session QR">
-          <div class="small text-muted mb-1">Anti-fake live challenge:</div>
-          <div id="challenge-text" class="challenge-box mb-2"></div>
-          <label class="form-label mb-1 small">QR Text</label>
-          <textarea id="qr-text" class="form-control form-control-sm" rows="6" readonly></textarea>
-        </div>
-        <div id="qr-empty" class="tiny text-muted">Create a session to display QR here.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="card mt-4">
-  <div class="card-body">
-    <h2 class="h5 mb-3">3) Face Confirm + Mark Attendance</h2>
-    <div class="row g-3">
-      <div class="col-lg-4">
-        <label class="form-label mb-1">Student</label>
-        <select id="roll-no" class="form-select">
-          <option value="">Select Roll Number</option>
-          {% for s in students %}
-          <option value="{{ s.roll_no }}">
-            {{ s.roll_no }} - {{ s.full_name }} {{ "[Face Enrolled]" if s.face_signature else "[Face Not Enrolled]" }}
-          </option>
-          {% endfor %}
-        </select>
-        <label class="form-label mb-1 mt-3">Camera Source</label>
-        <select id="camera-source" class="form-select">
-          <option value="webcam">Webcam</option>
-          <option value="phone">Phone Camera</option>
-        </select>
-        <div class="d-grid gap-2 mt-3">
-          <button id="start-camera" class="btn btn-outline-primary" type="button">Start Camera</button>
-          <button id="scan-qr" class="btn btn-outline-secondary" type="button">Scan QR</button>
-          <button id="enroll-face" class="btn btn-outline-dark" type="button">Enroll/Update Face</button>
-          <button id="mark-attendance" class="btn btn-primary" type="button">Capture + Mark Attendance</button>
-        </div>
-      </div>
-      <div class="col-lg-4">
-        <video id="camera-preview" class="camera-view rounded border" autoplay playsinline muted></video>
-        <canvas id="capture-canvas" class="d-none"></canvas>
-        <div class="small text-muted mt-2">
-          Webcam confirms identity by matching live face with enrolled student profile.
-        </div>
-      </div>
-      <div class="col-lg-4">
-        <div id="qr-reader" class="qr-reader rounded border"></div>
-        <label class="form-label mt-2 mb-1">Scanned QR Content</label>
-        <textarea id="scanned-qr" class="form-control" rows="6" placeholder="Scan or paste QR content here"></textarea>
-      </div>
-    </div>
-    <div id="attendance-message" class="small mt-3"></div>
-  </div>
-</section>
-
-<section class="row g-4 mt-1">
-  <div class="col-lg-6">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h3 class="h6 mb-0">Student Directory</h3>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th>Roll No</th>
-                <th>Name</th>
-                <th>Face</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="students-table">
-              {% for s in students %}
-              <tr data-student-id="{{ s.id }}" data-roll-no="{{ s.roll_no }}">
-                <td>{{ s.roll_no }}</td>
-                <td>{{ s.full_name }}</td>
-                <td>
-                  {% if s.face_signature %}
-                  <span class="badge bg-success-subtle text-success-emphasis">Enrolled</span>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">Recent Attendance</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Student</th><th>Session</th><th>Source</th><th>Liveness</th><th>Face Match</th><th>Time</th></tr></thead>
+                <tbody>
+                  {% for r in records %}
+                  <tr>
+                    <td>#{{ r.id }}</td>
+                    <td>{{ r.student_roll_no }} — {{ r.student_name }}</td>
+                    <td>{{ r.session_name }}</td>
+                    <td><span class="badge badge-active">{{ r.source }}</span></td>
+                    <td>{{ "%.2f"|format(r.liveness_score) }}</td>
+                    <td>{{ "%.2f"|format(r.face_match_score) }}</td>
+                    <td class="text-muted text-sm">{{ r.created_at }}</td>
+                  </tr>
                   {% else %}
-                  <span class="badge bg-warning-subtle text-warning-emphasis">Not Enrolled</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <button class="btn btn-sm btn-outline-danger delete-student-btn" data-student-id="{{ s.id }}">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="4" class="text-muted">No students found.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  <tr><td colspan="7" class="text-muted text-center">No records yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="col-lg-6">
-    <div class="card h-100">
-      <div class="card-body">
-        <h3 class="h6">Attendance Report Export</h3>
-        <div class="row g-2">
-          <div class="col-md-7">
-            <label class="form-label mb-1">Session Filter</label>
-            <select id="report-session-id" class="form-select">
-              <option value="">All Sessions</option>
-              {% for s in sessions %}
-              <option value="{{ s.id }}">{{ s.session_name }} ({{ s.starts_at }})</option>
-              {% endfor %}
-            </select>
+    <!-- -------- STUDENTS -------- -->
+    <div class="tab-panel" id="panel-students">
+      <div class="page-header">
+        <h2>Student Management</h2>
+        <p>Register students with login credentials and manage face enrollment.</p>
+      </div>
+      <div class="page-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Register Student</div>
+              <form id="student-form" class="stack gap-sm">
+                <div>
+                  <label class="form-label">Roll Number *</label>
+                  <input class="form-control" name="roll_no" placeholder="e.g. U18AJ23S0163" required>
+                </div>
+                <div>
+                  <label class="form-label">Full Name *</label>
+                  <input class="form-control" name="full_name" placeholder="John Doe" required>
+                </div>
+                <div>
+                  <label class="form-label">Course / Department</label>
+                  <select class="form-select" name="department" required>
+                    <option value="">Select a course…</option>
+                    <option value="B.Tech CS">B.Tech CS</option>
+                    <option value="B.Tech IT">B.Tech IT</option>
+                    <option value="BCA">BCA</option>
+                    <option value="MCA">MCA</option>
+                    <option value="BBA">BBA</option>
+                    <option value="MBA">MBA</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Semester</label>
+                  <input class="form-control" name="semester" type="number" min="1" max="12" placeholder="3">
+                </div>
+                <hr style="border-color:var(--border);margin:0.5rem 0;">
+                <div class="text-xs text-muted" style="font-weight:600;">LOGIN CREDENTIALS</div>
+                <div>
+                  <label class="form-label">Student Email</label>
+                  <input class="form-control" name="email" type="email" placeholder="student@college.edu">
+                </div>
+                <div>
+                  <label class="form-label">Password</label>
+                  <input class="form-control" name="password" type="password" placeholder="Set a password">
+                </div>
+                <button class="btn btn-primary btn-block mt-sm" type="submit">Add Student</button>
+              </form>
+              <div id="student-message" class="msg"></div>
+            </div>
           </div>
-          <div class="col-md-5">
-            <label class="form-label mb-1">Date Filter</label>
-            <input id="report-date" class="form-control" type="date">
-          </div>
-          <div class="col-12 d-grid">
-            <button id="export-report" class="btn btn-outline-success" type="button">Download CSV Report</button>
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Enroll Face</div>
+              <div class="stack gap-sm">
+                <div>
+                  <label class="form-label">Select Student</label>
+                  <select id="enroll-roll-no" class="form-select">
+                    <option value="">Choose student…</option>
+                    {% for s in students %}
+                    <option value="{{ s.roll_no }}">{{ s.roll_no }} — {{ s.full_name }} {{ "✓" if s.face_signature else "" }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="camera-wrap">
+                  <video id="enroll-camera" class="camera-view" autoplay playsinline muted></video>
+                  <div class="camera-status"><span class="camera-dot" id="enroll-cam-dot"></span><span id="enroll-cam-label">Camera off</span></div>
+                </div>
+                <canvas id="enroll-canvas" class="hidden"></canvas>
+                <button id="start-enroll-camera" class="btn btn-outline btn-block" type="button">Start Camera</button>
+                <button id="enroll-face-btn" class="btn btn-primary btn-block" type="button">Capture & Enroll Face</button>
+              </div>
+              <div id="enroll-message" class="msg"></div>
+            </div>
           </div>
         </div>
-        <div class="tiny text-muted mt-2">Exports `record_id`, `session`, `student`, source, liveness and face match score.</div>
+        <div class="card mt-lg">
+          <div class="card-body">
+            <div class="card-title">Student Directory ({{ students|length }} students, {{ total_closed }} sessions completed)</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Roll No</th><th>Name</th><th>Dept</th><th>Face</th><th>Login</th><th>Attendance</th><th>Action</th></tr></thead>
+                <tbody id="students-table">
+                  {% for s in students %}
+                  <tr data-student-id="{{ s.id }}" data-roll-no="{{ s.roll_no }}">
+                    <td>{{ s.roll_no }}</td>
+                    <td>{{ s.full_name }}</td>
+                    <td>{{ s.department or "—" }}</td>
+                    <td>
+                      {% if s.face_signature %}<span class="badge badge-success">✓ Enrolled</span>
+                      {% else %}<span class="badge badge-warning">Not Enrolled</span>{% endif %}
+                    </td>
+                    <td>
+                      {% if s.user_id %}<span class="badge badge-success">✓ Active</span>
+                      {% else %}<span class="badge badge-warning">No Login</span>{% endif %}
+                    </td>
+                    <td>
+                      {% set pct = student_pcts.get(s.id, 0) %}
+                      <span class="pct-badge {{ 'pct-high' if pct >= 75 else ('pct-mid' if pct >= 50 else 'pct-low') }}">{{ pct }}%</span>
+                    </td>
+                    <td>
+                      <button class="btn btn-outline-danger btn-sm delete-student-btn" data-student-id="{{ s.id }}">Delete</button>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="7" class="text-muted text-center">No students yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</section>
 
-<section class="card mt-4">
-  <div class="card-body">
-    <h3 class="h6">Recent Attendance</h3>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Student</th>
-            <th>Session</th>
-            <th>Source</th>
-            <th>Liveness</th>
-            <th>Face Match</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in records %}
-          <tr>
-            <td>#{{ r.id }}</td>
-            <td>{{ r.student_roll_no }} - {{ r.student_name }}</td>
-            <td>{{ r.session_name }}</td>
-            <td>{{ r.source }}</td>
-            <td>{{ "%.2f"|format(r.liveness_score) }}</td>
-            <td>{{ "%.2f"|format(r.face_match_score) }}</td>
-            <td>{{ r.created_at }}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="7" class="text-muted">No attendance records yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <!-- -------- SESSIONS -------- -->
+    <div class="tab-panel" id="panel-sessions">
+      <div class="page-header">
+        <h2>Attendance Sessions</h2>
+        <p>Create QR sessions and display them for students to scan.</p>
+      </div>
+      <div class="page-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Create New Session</div>
+              <form id="session-form" class="stack gap-sm">
+                <div>
+                  <label class="form-label">Session Name</label>
+                  <input class="form-control" name="session_name" placeholder="MCA S3 — DBMS Hour 1" required>
+                </div>
+                <div>
+                  <label class="form-label">Duration (minutes)</label>
+                  <input class="form-control" name="duration_min" type="number" min="1" max="180" value="5" required>
+                </div>
+                <button class="btn btn-success btn-block mt-sm" type="submit">Generate QR Session</button>
+              </form>
+              <div id="session-message" class="msg"></div>
+              <div class="mt-lg">
+                <div class="card-title" style="margin-bottom:0.5rem;">Active Sessions</div>
+                <div class="stack gap-sm" id="active-sessions-list">
+                  {% for s in active_sessions %}
+                  <div class="session-item" data-session-id="{{ s.id }}">
+                    <div class="session-info"><h4>{{ s.session_name }}</h4><span>Expires: {{ s.expires_at }}</span></div>
+                    <div style="display:flex; gap:0.5rem;">
+                      <button class="btn btn-primary btn-sm manage-session-btn" data-session-id="{{ s.id }}">Manage</button>
+                      <button class="btn btn-outline-danger btn-sm close-session-btn" data-session-id="{{ s.id }}">Close</button>
+                    </div>
+                  </div>
+                  {% else %}
+                  <div class="text-muted text-sm">No active sessions.</div>
+                  {% endfor %}
+                </div>
+              </div>
+              
+              <div class="mt-lg">
+                <div class="card-title" style="margin-bottom:0.5rem;">Past Sessions</div>
+                <div class="stack gap-sm">
+                  {% for s in sessions if not s.is_active %}
+                  <div class="session-item" data-session-id="{{ s.id }}">
+                    <div class="session-info"><h4>{{ s.session_name }}</h4><span class="text-muted">Closed</span></div>
+                    <button class="btn btn-primary btn-sm manage-session-btn" data-session-id="{{ s.id }}">Manage</button>
+                  </div>
+                  {% else %}
+                  <div class="text-muted text-sm">No past sessions.</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Live QR Code</div>
+              <div id="qr-block" class="qr-display hidden">
+                <img id="qr-image" alt="Session QR Code">
+                <div class="challenge-box mb-md" id="challenge-text"></div>
+                <div>
+                  <label class="form-label">QR Payload</label>
+                  <textarea id="qr-text" class="form-control" rows="4" readonly></textarea>
+                </div>
+              </div>
+              <div id="qr-empty" class="text-muted text-sm text-center" style="padding:3rem 1rem;">
+                Create a session to display the QR code here.<br>Show this on a projector for students to scan.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manage Session Modal (Hidden by default) -->
+      <div id="manage-session-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width:800px; width:95%;">
+          <div class="modal-header">
+            <h3 id="manage-modal-title">Manage Session</h3>
+            <button id="close-manage-modal" class="btn btn-outline btn-sm">Close</button>
+          </div>
+          <div class="modal-body">
+            <div class="stats-grid mb-lg" style="grid-template-columns: repeat(3, 1fr);">
+              <div class="card stat-card" style="padding:1rem;">
+                <div class="stat-label">Total Registered</div>
+                <div class="stat-value" id="manage-stat-total" style="font-size:1.5rem;">0</div>
+              </div>
+              <div class="card stat-card green" style="padding:1rem;">
+                <div class="stat-label">Present</div>
+                <div class="stat-value" id="manage-stat-present" style="font-size:1.5rem;">0</div>
+              </div>
+              <div class="card stat-card orange" style="padding:1rem;">
+                <div class="stat-label">Absent</div>
+                <div class="stat-value" id="manage-stat-absent" style="font-size:1.5rem;">0</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>Course</th>
+                    <th>Sem</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="manage-roster-tbody">
+                  <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="manage-message" class="msg mt-sm"></div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- -------- RECORDS -------- -->
+    <div class="tab-panel" id="panel-records">
+      <div class="page-header">
+        <h2>Records & Reports</h2>
+        <p>View attendance history and export CSV reports.</p>
+      </div>
+      <div class="page-body">
+        <div class="card mb-lg">
+          <div class="card-body">
+            <div class="card-title">Export Report</div>
+            <div class="grid-3">
+              <div>
+                <label class="form-label">Session Filter</label>
+                <select id="report-session-id" class="form-select">
+                  <option value="">All Sessions</option>
+                  {% for s in sessions %}<option value="{{ s.id }}">{{ s.session_name }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Date Filter</label>
+                <input id="report-date" class="form-control" type="date">
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button id="export-report" class="btn btn-success btn-block" type="button">Download CSV</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">Recent Records</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Student</th><th>Session</th><th>Source</th><th>Liveness</th><th>Face Match</th><th>Time</th></tr></thead>
+                <tbody>
+                  {% for r in records %}
+                  <tr>
+                    <td>#{{ r.id }}</td>
+                    <td>{{ r.student_roll_no }} — {{ r.student_name }}</td>
+                    <td>{{ r.session_name }}</td>
+                    <td><span class="badge badge-active">{{ r.source }}</span></td>
+                    <td>{{ "%.2f"|format(r.liveness_score) }}</td>
+                    <td>{{ "%.2f"|format(r.face_match_score) }}</td>
+                    <td class="text-muted text-sm">{{ r.created_at }}</td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="7" class="text-muted text-center">No records yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------- TEACHERS (Admin only) -------- -->
+    {% if user.is_admin %}
+    <div class="tab-panel" id="panel-teachers">
+      <div class="page-header">
+        <h2>Teacher Management</h2>
+        <p>Create and manage teacher accounts.</p>
+      </div>
+      <div class="page-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Add Teacher</div>
+              <form id="teacher-form" class="stack gap-sm">
+                <div>
+                  <label class="form-label">Full Name</label>
+                  <input class="form-control" name="full_name" placeholder="Dr. Jane Smith" required>
+                </div>
+                <div>
+                  <label class="form-label">Email</label>
+                  <input class="form-control" name="email" type="email" placeholder="teacher@college.edu" required>
+                </div>
+                <div>
+                  <label class="form-label">Password</label>
+                  <input class="form-control" name="password" type="password" placeholder="Set a password" required>
+                </div>
+                <button class="btn btn-primary btn-block mt-sm" type="submit">Add Teacher</button>
+              </form>
+              <div id="teacher-message" class="msg"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="card-title">Teacher Directory</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+                  <tbody id="teachers-table">
+                    {% for t in teachers %}
+                    <tr data-user-id="{{ t.id }}">
+                      <td>{{ t.full_name }}</td>
+                      <td>{{ t.email }}</td>
+                      <td><span class="badge badge-active">{{ t.role }}</span></td>
+                      <td>
+                        {% if t.role != 'admin' %}
+                        <button class="btn btn-outline-danger btn-sm delete-teacher-btn" data-user-id="{{ t.id }}">Delete</button>
+                        {% else %}
+                        <span class="text-xs text-muted">Admin</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
   </div>
-</section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endblock %}
